@@ -12,7 +12,7 @@ class ContactController extends Controller
 {
     public function index()
     {
-        $contacts = Contact::all();
+        $contacts = Contact::with('emails', 'phoneNumbers')->get();
         return response()->json($contacts);
     }
 
@@ -74,7 +74,31 @@ class ContactController extends Controller
     public function update(Request $request, $id)
     {
         $contact = Contact::findOrFail($id);
-        $contact->update($request->all());
+        $contact->update([
+            'name' => $request->input('name'),
+            'last_name' => $request->input('last_name'),
+            'address' => $request->input('address'),
+            'city' => $request->input('city'),
+            'country' => $request->input('country'),
+        ]);
+
+        // Update emails
+        $emails = $request->input('emails');
+        if (!empty($emails)) {
+            $contact->emails()->delete(); // Delete existing emails
+            foreach ($emails as $email) {
+                $contact->emails()->create(['email' => $email]);
+            }
+        }
+
+        // Update phone numbers
+        $phoneNumbers = $request->input('phone_numbers');
+        if (!empty($phoneNumbers)) {
+            $contact->phoneNumbers()->delete(); // Delete existing phone numbers
+            foreach ($phoneNumbers as $phoneNumber) {
+                $contact->phoneNumbers()->create(['phone_number' => $phoneNumber]);
+            }
+        }
 
         if ($contact->wasChanged()) {
             return response()->json(['message' => 'Contact updated successfully'], 200);
@@ -90,6 +114,16 @@ class ContactController extends Controller
         if ($contact) {
             $contact->delete();
             return response()->json(['message' => 'Contact deleted successfully'], 200);
+        } else {
+            return response()->json(['message' => 'Contact not found'], 404);
+        }
+    }
+    public function show($id)
+    {
+        $contact = Contact::with('emails', 'phoneNumbers')->find($id);
+
+        if ($contact) {
+            return response()->json($contact);
         } else {
             return response()->json(['message' => 'Contact not found'], 404);
         }
